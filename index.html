@@ -59,7 +59,7 @@
 // ===================== ตั้งค่า (ใช้ HiveMQ WSS พอร์ต 8884) =====================
 const q = new URLSearchParams(location.search);
 const ROOM = q.get("room") || "";
-const BROKER = q.get("broker") || "wss://broker.hivemq.com:8884/mqtt";
+const BROKER = q.get("broker") || "wss://broker.hivemq.com:443/mqtt";
 const ICE = [{urls: "stun:stun.l.google.com:19302"}, {urls: "stun:stun.cloudflare.com:3478"}];
 const ID = "m" + Math.random().toString(36).slice(2, 10);
 
