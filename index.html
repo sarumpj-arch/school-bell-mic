@@ -2,148 +2,245 @@
 <html lang="th">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>เสียงตามสายออนไลน์</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>ไมค์เสียงตามสาย</title>
+<script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
 <style>
   body{font-family:system-ui,sans-serif;background:#eef1fb;margin:0;display:flex;justify-content:center}
-  .card{background:#fff;margin:24px 16px;padding:24px;border-radius:20px;max-width:420px;width:100%;
+  .card{background:#fff;margin:20px 14px;padding:22px;border-radius:20px;max-width:420px;width:100%;
         box-shadow:0 6px 24px #4a55a222;text-align:center}
-  h1{color:#4a55a2;font-size:1.4rem}
-  input[type=password]{font-size:1.4rem;padding:10px;width:60%;text-align:center;border-radius:10px;border:1px solid #ccd}
-  button{font-size:1.1rem;border:0;border-radius:12px;padding:12px 20px;color:#fff;background:#4a55a2;cursor:pointer}
-  .talk{width:220px;height:220px;border-radius:50%;font-size:1.3rem;background:#10b981;margin:20px auto;display:block}
-  .talk.live{background:#ef4444;animation:pulse 1.2s infinite}
-  .talk.wait{background:#f59e0b}
+  h1{color:#4a55a2;font-size:1.4rem;margin:.2em 0} h2{color:#4a55a2;font-size:1.05rem}
+  .sub{color:#888;font-size:.85rem;margin-top:0}
+  input[type=password]{font-size:1.5rem;padding:10px;width:70%;text-align:center;border-radius:12px;border:1px solid #ccd;letter-spacing:6px}
+  button{font-size:1.05rem;border:0;border-radius:12px;padding:12px 18px;color:#fff;background:#4a55a2;cursor:pointer}
+  .primary{margin-top:12px;width:75%}
+  .badge{background:#e7f8f1;color:#047857;border-radius:10px;padding:8px}
+  .talk{width:210px;height:210px;border-radius:50%;font-size:1.3rem;background:#10b981;margin:16px auto;display:block}
+  .talk.live{background:#ef4444;animation:pulse 1.2s infinite} .talk.wait{background:#f59e0b}
   @keyframes pulse{50%{box-shadow:0 0 0 18px #ef444433}}
-  .meter{height:12px;background:#e5e7eb;border-radius:6px;overflow:hidden;margin:12px 0}
+  .meter{height:12px;background:#e5e7eb;border-radius:6px;overflow:hidden;margin:10px 0}
   #level{height:100%;width:0;background:#10b981;transition:width .08s}
+  .chime{background:#f59e0b;width:75%}
+  .music button{font-size:1.25rem;padding:10px 13px;margin:3px;background:#6366f1}
+  hr{margin:20px 0;border:0;border-top:1px solid #e5e7eb}
   #status{color:#555;min-height:1.5em}
 </style>
 </head>
 <body>
 <div class="card">
-  <h1>📢 เสียงตามสายออนไลน์</h1>
+  <h1>📢 เสียงตามสายโรงเรียน</h1>
+  <p class="sub">รหัสห้อง: <b id="roomLbl">-</b></p>
+
   <div id="login">
-    <p><input id="pin" type="password" inputmode="numeric" placeholder="PIN"></p>
-    <button id="btnLogin">เชื่อมต่อ</button>
+    <input id="pin" type="password" inputmode="numeric" maxlength="8" placeholder="PIN" autocomplete="off">
+    <br><button id="btnLogin" class="primary">เข้าห้อง</button>
   </div>
+
   <div id="panel" hidden>
+    <p id="pcStatus" class="badge">-</p>
     <button id="btnTalk" class="talk">🎙️<br>เริ่มประกาศ</button>
     <div class="meter"><div id="level"></div></div>
-    <label>ความดังไมค์ <input id="gain" type="range" min="0.5" max="3" step="0.1" value="1.5"></label>
+    <button id="btnChime" class="chime">🔔 เล่นเสียงกริ่ง</button>
+    <hr>
+    <h2>🎵 ควบคุมเพลง (Winamp)</h2>
+    <p id="np">-</p>
+    <div class="music">
+      <button data-cmd="launch">🚀</button><button data-cmd="prev">⏮</button>
+      <button data-cmd="play">▶</button><button data-cmd="pause">⏸</button>
+      <button data-cmd="stop">⏹</button><button data-cmd="next">⏭</button>
+    </div>
+    <label>🔊 <input id="mvol" type="range" min="0" max="100"> <span id="mvolv"></span></label>
   </div>
-  <p id="status">ยังไม่ได้เชื่อมต่อ</p>
+
+  <p id="status">กรอกรหัส PIN เพื่อเข้าห้อง</p>
 </div>
 
 <script>
-const TARGET_RATE = 16000;
+// ===================== ตั้งค่า (ใช้ HiveMQ WSS พอร์ต 8884) =====================
+const q = new URLSearchParams(location.search);
+const ROOM = q.get("room") || "";
+const BROKER = q.get("broker") || "wss://broker.hivemq.com:8884/mqtt";
+const ICE = [{urls: "stun:stun.l.google.com:19302"}, {urls: "stun:stun.cloudflare.com:3478"}];
+const ID = "m" + Math.random().toString(36).slice(2, 10);
+
 const $ = id => document.getElementById(id);
-let ws = null, audioCtx = null, micStream = null, state = "idle", wakeLock = null;
+const enc = new TextEncoder();
+let client, key, TOPIC, pc, stream, wakeLock, actx, loggedIn = false, state = "idle", pending = {};
 
-// AudioWorklet: เก็บเสียงจากไมค์เป็นก้อน ๆ (~2048 samples) แล้วส่งกลับมาที่ main thread
-const WORKLET = `
-class PcmCapture extends AudioWorkletProcessor {
-  constructor(){ super(); this.chunks=[]; this.len=0; }
-  process(inputs){
-    const ch = inputs[0] && inputs[0][0];
-    if (ch) {
-      this.chunks.push(new Float32Array(ch)); this.len += ch.length;
-      if (this.len >= 2048) {
-        const out = new Float32Array(this.len); let o = 0;
-        for (const c of this.chunks) { out.set(c, o); o += c.length; }
-        this.port.postMessage(out, [out.buffer]); this.chunks = []; this.len = 0;
-      }
-    }
-    return true;
-  }
-}
-registerProcessor('pcm-capture', PcmCapture);`;
+const ERR = {
+  auth: "รหัส PIN ไม่ถูกต้อง ❌", time: "เวลาในมือถือไม่ตรง กรุณาตั้งเวลาอัตโนมัติ",
+  timeout: "คอมพิวเตอร์ไม่ตอบ (ปิดอยู่ หรือไม่ได้ต่อเน็ต)", disabled: "ระบบเสียงตามสายถูกปิดอยู่",
+  busy: "มีผู้ประกาศครบ 2 เครื่องแล้ว กรุณารอสักครู่", broker: "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ ตรวจสอบอินเทอร์เน็ต",
+  NotAllowedError: "กรุณาอนุญาตให้ใช้ไมโครโฟน",
+};
+const msgOf = e => ERR[e.name] || ERR[e.message] || ("เกิดข้อผิดพลาด: " + e.message);
+const setStatus = t => $("status").textContent = t;
 
-function setStatus(t){ $("status").textContent = t; }
+// ===================== ลายเซ็น HMAC =====================
+const hex = b => [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, "0")).join("");
+const sha256hex = async s => hex(await crypto.subtle.digest("SHA-256", enc.encode(s)));
+const sign = async (type, ts, data) =>
+  hex(await crypto.subtle.sign("HMAC", key, enc.encode(`${type}|${ID}|${ts}|${data}`)));
 
-async function buildAudio(rate){
-  const ctx = rate ? new AudioContext({sampleRate: rate}) : new AudioContext();
-  await ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([WORKLET], {type:"application/javascript"})));
-  const src = ctx.createMediaStreamSource(micStream);   // Firefox จะ error ตรงนี้ถ้า rate ไม่ตรง
-  const node = new AudioWorkletNode(ctx, "pcm-capture");
-  node.port.onmessage = e => onAudio(e.data);
-  src.connect(node); node.connect(ctx.destination);       // node ไม่ส่งเสียงออก จึงไม่มีเสียงย้อน
-  return ctx;
+async function send(type, data = "") {
+  const ts = Date.now();
+  client.publish(TOPIC + "/phone", JSON.stringify({type, id: ID, ts, data, sig: await sign(type, ts, data)}), {qos: 1});
 }
 
-async function initMic(){
-  micStream = await navigator.mediaDevices.getUserMedia({
-    audio: {echoCancellation:true, noiseSuppression:true, autoGainControl:true, channelCount:1}
+function waitFor(type, ms) {
+  return new Promise((res, rej) => {
+    pending[type] = {res, rej};
+    setTimeout(() => { if (pending[type]) { delete pending[type]; rej(new Error("timeout")); } }, ms);
   });
-  try { audioCtx = await buildAudio(TARGET_RATE); }
-  catch (e) { audioCtx = await buildAudio(null); }        // ถ้าไม่ได้ ใช้ rate เดิมของเครื่องแล้ว downsample เอง
+}
+function resolveP(type, v) { const p = pending[type]; if (p) { delete pending[type]; p.res(v); } }
+function rejectAll(err) {
+  const had = Object.keys(pending).length;
+  for (const k in pending) pending[k].rej(err);
+  pending = {};
+  if (!had && loggedIn && err.message === "auth") logout(ERR.auth);
 }
 
-// แปลง Float32 → Int16 พร้อม downsample ให้เหลือ 16 kHz
-function toInt16(f32, inRate, gain){
-  const ratio = inRate / TARGET_RATE, outLen = Math.floor(f32.length / ratio);
-  const out = new Int16Array(outLen);
-  for (let i = 0; i < outLen; i++) {
-    const a = Math.floor(i * ratio), b = Math.min(f32.length, Math.floor((i + 1) * ratio));
-    let sum = 0; for (let j = a; j < b; j++) sum += f32[j];
-    let s = Math.max(-1, Math.min(1, (sum / Math.max(1, b - a)) * gain));
-    out[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+// ===================== รับข้อความจากคอม =====================
+async function onMsg(_t, payload) {
+  let m; try { m = JSON.parse(payload.toString()); } catch { return; }
+  if (m.id !== ID) return;
+  if (["error", "busy", "disabled"].includes(m.type)) { rejectAll(new Error(m.type === "error" ? m.data : m.type)); return; }
+  if (m.sig !== await sign(m.type, m.ts, m.data)) return;
+  if (m.type === "welcome") resolveP("welcome", JSON.parse(m.data));
+  else if (m.type === "answer") resolveP("answer", m.data);
+  else if (m.type === "wa_info") showWa(JSON.parse(m.data));
+}
+
+// ===================== เข้าห้อง =====================
+async function connectBroker() {
+  if (!client) {
+    client = mqtt.connect(BROKER, {clientId: ID, clean: true, reconnectPeriod: 3000, connectTimeout: 10000});
+    client.on("message", onMsg);
+    client.on("offline", () => setStatus("⚠️ อินเทอร์เน็ตหลุด กำลังเชื่อมต่อใหม่..."));
+    client.on("connect", () => { if (loggedIn) setStatus("เชื่อมต่อแล้ว ✅"); });
   }
-  return out;
-}
-
-function onAudio(f32){
-  const gain = parseFloat($("gain").value);
-  let peak = 0; for (const s of f32) peak = Math.max(peak, Math.abs(s));
-  $("level").style.width = Math.min(100, peak * gain * 100) + "%";
-  if (state !== "live" || !ws || ws.readyState !== 1) return;
-  if (ws.bufferedAmount > 64000) return;                  // เน็ตช้า: ทิ้งบางก้อนแทนการสะสมดีเลย์
-  ws.send(toInt16(f32, audioCtx.sampleRate, gain).buffer);
-}
-
-function updateUI(){
-  const b = $("btnTalk");
-  b.className = "talk" + (state === "live" ? " live" : state === "waiting" ? " wait" : "");
-  b.innerHTML = state === "live" ? "⏹<br>จบประกาศ" : state === "waiting" ? "⏳<br>กำลังเตรียม" : "🎙️<br>เริ่มประกาศ";
+  await new Promise((res, rej) => {
+    if (client.connected) return res();
+    const t = setTimeout(() => rej(new Error("broker")), 12000);
+    client.once("connect", () => { clearTimeout(t); res(); });
+  });
+  await client.subscribeAsync(TOPIC + "/pc", {qos: 1});
 }
 
 $("btnLogin").onclick = async () => {
-  try { await initMic(); }
-  catch (e) { setStatus("เปิดไมค์ไม่ได้: " + e.message + " (ต้องเปิดผ่าน HTTPS)"); return; }
-  ws = new WebSocket((location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws");
-  ws.binaryType = "arraybuffer";
-  ws.onopen = () => ws.send(JSON.stringify({type: "auth", pin: $("pin").value}));
-  ws.onmessage = ev => {
-    const m = JSON.parse(ev.data);
-    if (m.type === "auth") {
-      if (m.ok) { $("login").hidden = true; $("panel").hidden = false; setStatus("เชื่อมต่อแล้ว ✅"); }
-      else setStatus("PIN ไม่ถูกต้อง ❌");
-    } else if (m.type === "busy")    { state = "idle";  setStatus("มีผู้อื่นกำลังประกาศอยู่"); }
-      else if (m.type === "ready")   { state = "live";  setStatus("🔴 ออกอากาศแล้ว พูดได้เลย"); }
-      else if (m.type === "stopped") { state = "idle";  setStatus("จบการประกาศแล้ว"); }
-    updateUI();
-  };
-  ws.onclose = () => {
-    state = "idle"; updateUI();
-    $("panel").hidden = true; $("login").hidden = false;
-    setStatus("การเชื่อมต่อหลุด กรุณาเชื่อมต่อใหม่");
-  };
+  const pin = $("pin").value.trim();
+  if (!ROOM) return setStatus("ลิงก์ไม่ถูกต้อง (ไม่มีรหัสห้อง) กรุณาสแกน QR ใหม่");
+  if (!/^\d{4,8}$/.test(pin)) return setStatus("PIN ต้องเป็นตัวเลข 4-8 หลัก");
+  setStatus("กำลังเชื่อมต่อ...");
+  try {
+    key = await crypto.subtle.importKey("raw", enc.encode(ROOM + ":" + pin),
+                                        {name: "HMAC", hash: "SHA-256"}, false, ["sign"]);
+    TOPIC = "schoolbell/" + (await sha256hex(ROOM)).slice(0, 24);
+    await connectBroker();
+    const p = waitFor("welcome", 8000);
+    await send("hello");
+    const info = await p;
+    localStorage.setItem("pin_" + ROOM, pin);
+    loggedIn = true;
+    $("login").hidden = true; $("panel").hidden = false;
+    $("pcStatus").textContent = `🟢 เชื่อมต่อคอมแล้ว (กำลังประกาศ ${info.live}/${info.max})`;
+    setStatus("พร้อมใช้งาน ✅");
+    send("wa", '{"cmd":"info"}');
+  } catch (e) { setStatus(msgOf(e)); }
 };
 
-$("btnTalk").onclick = async () => {
-  if (state === "idle") {
-    await audioCtx.resume();
-    try { wakeLock = await navigator.wakeLock?.request("screen"); } catch (e) {}
-    state = "waiting";
-    ws.send(JSON.stringify({type: "start"}));
-    setStatus("กำลังหรี่เพลงและเล่นเสียงสัญญาณ รอสักครู่...");
-  } else if (state === "live") {
-    state = "waiting";
-    ws.send(JSON.stringify({type: "stop"}));
-    wakeLock?.release(); wakeLock = null;
-  }
-  updateUI();
+function logout(msg) {
+  stopTalk(false); loggedIn = false;
+  $("panel").hidden = true; $("login").hidden = false; setStatus(msg);
+}
+
+// ===================== ประกาศเสียง (WebRTC) =====================
+function iceDone(pc) {
+  return new Promise(res => {
+    if (pc.iceGatheringState === "complete") return res();
+    const t = setTimeout(res, 4000);
+    pc.addEventListener("icegatheringstatechange", () => {
+      if (pc.iceGatheringState === "complete") { clearTimeout(t); res(); }
+    });
+  });
+}
+
+async function startTalk() {
+  state = "waiting"; ui(); setStatus("กำลังเปิดไมค์และเชื่อมต่อ...");
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio: {echoCancellation: true, noiseSuppression: true, autoGainControl: true}});
+    meter(stream);
+    pc = new RTCPeerConnection({iceServers: ICE});
+    stream.getTracks().forEach(t => pc.addTrack(t, stream));
+    pc.onconnectionstatechange = () => {
+      const s = pc && pc.connectionState;
+      if (s === "connected") { state = "live"; ui(); setStatus("🔴 ออกอากาศแล้ว พูดได้เลย"); }
+      else if (s === "failed") { stopTalk(true); setStatus("เชื่อมต่อเสียงไม่สำเร็จ ลองเปลี่ยนเป็น Wi-Fi"); }
+    };
+    await pc.setLocalDescription(await pc.createOffer());
+    await iceDone(pc);
+    const p = waitFor("answer", 15000);
+    await send("offer", pc.localDescription.sdp);
+    await pc.setRemoteDescription({type: "answer", sdp: await p});
+    try { wakeLock = await navigator.wakeLock?.request("screen"); } catch {}
+  } catch (e) { stopTalk(false); setStatus(msgOf(e)); }
+}
+
+function stopTalk(notify) {
+  if (notify && client && pc) send("bye");
+  pc?.close(); pc = null;
+  stream?.getTracks().forEach(t => t.stop()); stream = null;
+  wakeLock?.release?.(); wakeLock = null;
+  state = "idle"; ui();
+}
+
+function meter(s) {
+  actx = actx || new AudioContext();
+  const an = actx.createAnalyser(); an.fftSize = 512;
+  actx.createMediaStreamSource(s).connect(an);
+  const buf = new Uint8Array(an.fftSize);
+  (function draw() {
+    if (!stream) { $("level").style.width = "0"; return; }
+    an.getByteTimeDomainData(buf);
+    let peak = 0; for (const v of buf) peak = Math.max(peak, Math.abs(v - 128));
+    $("level").style.width = Math.min(100, peak / 128 * 160) + "%";
+    requestAnimationFrame(draw);
+  })();
+}
+
+function ui() {
+  const b = $("btnTalk");
+  b.className = "talk" + (state === "live" ? " live" : state === "waiting" ? " wait" : "");
+  b.innerHTML = state === "live" ? "⏹<br>จบประกาศ" : state === "waiting" ? "⏳<br>กำลังเชื่อมต่อ" : "🎙️<br>เริ่มประกาศ";
+}
+
+$("btnTalk").onclick = () => {
+  if (state === "idle") startTalk();
+  else { stopTalk(true); setStatus("จบการประกาศแล้ว"); }
 };
+$("btnChime").onclick = () => { send("chime"); setStatus("🔔 ส่งคำสั่งเล่นเสียงกริ่งแล้ว"); };
+window.addEventListener("pagehide", () => { if (pc) send("bye"); });
+
+// ===================== ควบคุม Winamp =====================
+function showWa(i) {
+  $("pcStatus").textContent = `🟢 เชื่อมต่อคอมแล้ว (กำลังประกาศ ${i.pa_live}/${i.pa_max})`;
+  if (!i.running) { $("np").textContent = "Winamp ยังไม่ได้เปิด (กด 🚀)"; return; }
+  const icon = {1: "▶", 3: "⏸"}[i.status] || "⏹";
+  $("np").textContent = `${icon} ${i.title || "-"}` + (i.ducked ? " (หรี่ให้ออด/ประกาศ)" : "");
+  if (document.activeElement !== $("mvol")) $("mvol").value = i.volume;
+  $("mvolv").textContent = i.volume + "%";
+}
+document.querySelectorAll("[data-cmd]").forEach(b =>
+  b.onclick = () => send("wa", JSON.stringify({cmd: b.dataset.cmd})));
+$("mvol").oninput = e => $("mvolv").textContent = e.target.value + "%";
+$("mvol").onchange = e => send("wa", JSON.stringify({cmd: "volume", value: +e.target.value}));
+setInterval(() => { if (loggedIn && client?.connected) send("wa", '{"cmd":"info"}'); }, 4000);
+
+// ===================== เริ่มต้น =====================
+$("roomLbl").textContent = ROOM || "(ไม่มี)";
+$("pin").value = localStorage.getItem("pin_" + ROOM) || "";
 </script>
 </body>
 </html>
