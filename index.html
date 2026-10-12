@@ -59,7 +59,9 @@
 // ===================== ตั้งค่า (ใช้ EMQX WS พอร์ต 8083) =====================
 const q = new URLSearchParams(location.search);
 const ROOM = q.get("room") || "";
-const BROKER = q.get("broker") || "ws://broker.emqx.io:8083/mqtt";
+// ดึง IP ของคอมพิวเตอร์จาก URL หรือใช้ IP วงแลน
+const host = q.get("broker") || location.hostname || "localhost";
+const BROKER = `ws://${host}:8083/mqtt`;
 const ICE = [{urls: "stun:stun.l.google.com:19302"}, {urls: "stun:stun.cloudflare.com:3478"}];
 const ID = "m" + Math.random().toString(36).slice(2, 10);
 
