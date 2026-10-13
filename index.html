@@ -1,162 +1,120 @@
 <!DOCTYPE html>
-<html lang="th">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<html lang="th"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
 <title>ประกาศเสียงตามสาย</title>
 <style>
-body{font-family:'Tahoma',sans-serif;background:#f3f4f8;display:flex;flex-direction:column;align-items:center;padding:30px 20px;margin:0}
-.badge{background:white;border-radius:14px;padding:10px 18px;box-shadow:0 2px 6px rgba(0,0,0,.06);margin-bottom:40px;text-align:center}
-.card{background:white;border-radius:20px;padding:24px;width:100%;max-width:380px;box-shadow:0 4px 14px rgba(0,0,0,.08);text-align:center}
-.icon{width:64px;height:64px;background:#eef1ff;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:28px}
-h2{margin:4px 0}
-p.sub{color:#9aa0ab;font-size:13px;margin-top:0}
-.status{background:#eafaf1;color:#1e8449;border-radius:10px;padding:10px;font-size:13px;margin:14px 0}
-input[type=password]{width:100%;box-sizing:border-box;padding:14px;border-radius:10px;border:1px solid #e2e4e9;text-align:center;letter-spacing:6px;font-size:20px;margin-bottom:14px}
-button{width:100%;padding:14px;border:none;border-radius:10px;background:#5b3df5;color:white;font-size:16px;font-weight:bold;cursor:pointer}
-.row{display:flex;align-items:center;gap:8px;font-size:13px;color:#555;margin-bottom:16px;justify-content:center}
-.vol-row{display:flex;justify-content:space-between;font-size:14px;margin-bottom:6px}
-input[type=range]{width:100%}
-.switch-row{display:flex;justify-content:space-between;align-items:center;margin:18px 0;font-size:14px}
-#chimeBtn{background:#e8820b;margin-bottom:28px}
-#micBtn{width:140px;height:140px;border-radius:50%;background:#e4336a;margin:0 auto;display:block}
-#micBtn.live{background:#c0265a;transform:scale(1.05)}
-.foot{display:flex;justify-content:space-between;font-size:12px;color:#888;margin-top:24px}
-#logoutBtn{color:#5b3df5;cursor:pointer;background:none;border:none;font-size:12px;width:auto;padding:0}
-</style>
-</head>
-<body>
-<div class="badge">📢 <b>ประกาศเสียงตามสาย</b><br><small id="roomLabel">ห้อง: -</small></div>
+*{box-sizing:border-box}
+body{font-family:system-ui,Tahoma,sans-serif;margin:0;background:#f8fafc;color:#111;display:flex;justify-content:center;-webkit-user-select:none;user-select:none}
+.wrap{width:100%;max-width:440px;padding:14px}
+.top{display:inline-flex;gap:10px;align-items:center;background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:8px 16px;margin:0 auto 18px}
+.top b{display:block}.top small{color:#94a3b8}
+.card{background:#fff;border:1px solid #e2e8f0;border-radius:24px;padding:18px}
+.status{padding:12px;border-radius:14px;text-align:center;font-weight:700;background:#e8faf1;color:#087443;border:1px solid #a7f3d0}
+.status.bad{background:#fdecec;color:#b42318;border-color:#fecaca}.status.talk{background:#fff3cd;color:#8a5a00;border-color:#fde68a}
+input[type=tel]{width:100%;font-size:24px;text-align:center;padding:14px;border:1px solid #cbd5e1;border-radius:14px;margin:14px 0 8px}
+.btn{width:100%;font-size:19px;font-weight:700;padding:16px;border:0;border-radius:14px;color:#fff;background:#4f00ff;margin-top:12px}
+.chime{background:linear-gradient(90deg,#f59e0b,#d97706)}
+.box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:16px;padding:14px;margin:14px 0}
+.row{display:flex;justify-content:space-between;align-items:center;font-size:14px;color:#334155}
+input[type=range]{width:100%;margin:10px 0;accent-color:#4f00ff}
+.meter{height:10px;border-radius:6px;background:#e2e8f0;overflow:hidden}.meter i{display:block;height:100%;width:0;background:#22c55e}
+.sw{position:relative;width:48px;height:26px}.sw input{opacity:0;width:0;height:0}
+.sw span{position:absolute;inset:0;background:#94a3b8;border-radius:26px;transition:.2s}
+.sw span:before{content:"";position:absolute;width:20px;height:20px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
+.sw input:checked+span{background:#4f00ff}.sw input:checked+span:before{transform:translateX(22px)}
+#mic{display:block;margin:20px auto 6px;width:150px;height:150px;border-radius:50%;border:6px solid #fff;color:#fff;font-weight:700;font-size:16px;
+ background:radial-gradient(circle at 30% 20%,#fb5b7a,#e11d48);box-shadow:0 8px 24px #e11d4855;touch-action:none;-webkit-touch-callout:none}
+#mic.on{background:radial-gradient(circle at 30% 20%,#34d399,#059669);box-shadow:0 0 0 10px #05966933}
+.foot{display:flex;justify-content:space-between;color:#94a3b8;font-size:14px;margin-top:14px;border-top:1px solid #eef2f7;padding-top:10px}
+.hide{display:none}.msg{text-align:center;margin-top:10px;font-weight:600;min-height:22px}.err{color:#b42318}
+</style></head><body><div class="wrap">
+<div style="text-align:center"><div class="top"><span style="font-size:30px">📢</span><div style="text-align:left"><b>ประกาศเสียงตามสาย</b><small id="room"></small></div></div></div>
 
-<div class="card" id="pinCard">
-  <div class="icon">🔒</div>
-  <h2>รหัสผ่านเข้าห้องประกาศ</h2>
-  <p class="sub">กรอกรหัส PIN ที่กำหนดไว้ในคอมพิวเตอร์</p>
-  <div class="status" id="pcStatus">🔄 กำลังเชื่อมต่อคลาวด์...</div>
-  <form id="loginForm">
-    <input type="password" id="pin" maxlength="8" placeholder="••••">
-    <div class="row"><input type="checkbox" id="remember" checked> จดจำรหัสผ่านในเครื่องนี้</div>
-    <button type="submit">เข้าสู่ระบบ</button>
-  </form>
-  <div id="err" style="color:#e74c3c;font-size:13px;min-height:16px"></div>
+<div class="card" id="login">
+  <div style="text-align:center;font-size:40px">🔐</div>
+  <h3 style="text-align:center;margin:4px 0">รหัสผ่านเข้าห้องประกาศ</h3>
+  <div id="pcst" class="status bad">กำลังตรวจสอบคอมพิวเตอร์…</div>
+  <input id="pin" type="tel" inputmode="numeric" maxlength="8" placeholder="••••">
+  <label style="display:flex;gap:8px;justify-content:center"><input type="checkbox" id="rem"> จดจำรหัสผ่านในเครื่องนี้</label>
+  <button class="btn" onclick="login()">เข้าสู่ระบบ</button>
 </div>
 
-<div class="card" id="micCard" style="display:none">
-  <div class="status" id="statusText">พร้อมประกาศ</div>
-  <div class="vol-row"><span>ระดับเสียงไมค์:</span><span id="volVal">100%</span></div>
-  <input type="range" id="vol" min="0" max="100" value="100">
-  <div class="switch-row"><span>โหมดแตะเปิด / แตะปิด</span>
-    <label><input type="checkbox" id="tapMode"></label></div>
-  <button id="chimeBtn">🔔 เล่นเสียงกริ่งเตือน</button>
-  <button id="micBtn">🎙️<br>กดค้าง<br>เพื่อประกาศ</button>
-  <div class="foot"><span id="countText">ผู้ประกาศในสาย: 0/2</span>
-    <button id="logoutBtn">ออกจากระบบ</button></div>
+<div class="card hide" id="panel">
+  <div class="status" id="slot">พร้อมประกาศ</div>
+  <div class="box">
+    <div class="row"><span>ระดับเสียงไมค์:</span><b id="vl">100%</b></div>
+    <input type="range" id="vol" min="0" max="200" value="100">
+    <div class="meter"><i id="lvl"></i></div>
+    <div class="row" style="margin-top:12px;border-top:1px solid #e2e8f0;padding-top:10px"><span>โหมดแตะเปิด / แตะปิด</span>
+      <label class="sw"><input type="checkbox" id="tap"><span></span></label></div>
+  </div>
+  <button class="btn chime" onclick="chime()">🔔 เล่นเสียงกริ่งเตือน</button>
+  <button id="mic" oncontextmenu="return false">🎙<br><span id="miclbl">กดค้าง<br>เพื่อประกาศ</span></button>
+  <div class="foot"><span id="cnt">ผู้ประกาศในสาย: 0/2</span><a href="" style="color:#94a3b8">ออกจากระบบ</a></div>
 </div>
-
+<div class="msg" id="msg"></div>
+</div>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script>
-const params = new URLSearchParams(location.search);
-const HOST = params.get('host');
-const ROOM = params.get('room') || '-';
-let PIN = params.get('pin') || localStorage.getItem('sb_pin') || '';
-document.getElementById('roomLabel').innerText = 'ห้อง: ' + ROOM;
+const room=new URLSearchParams(location.search).get('room'), $=id=>document.getElementById(id);
+let peer,conn,call,raw,ctx,gain,analyser,dest,logged=false,talking=false,wantTalk=false;
+$('room').textContent=room?('ห้อง: '+room):'ไม่พบรหัสห้อง';
+try{const p=localStorage.getItem('ga-pin'); if(p){$('pin').value=p;$('rem').checked=true;}}catch(e){}
+const msg=(t,bad)=>{$('msg').textContent=t;$('msg').className='msg'+(bad?' err':'');};
+function online(on){const s=$('pcst');s.className='status'+(on?'':' bad');s.textContent=on?'🟢 คอมพิวเตอร์: ออนไลน์ พร้อมใช้งาน (Online)':'🔴 คอมพิวเตอร์: ออฟไลน์ (ยังไม่เปิดโปรแกรม)';}
+function slots(n){const s=$('slot');$('cnt').textContent=`ผู้ประกาศในสาย: ${n}/2`;
+  s.className='status'+(n>=2&&!talking?' bad':'');s.textContent=talking?'🎙 กำลังประกาศ…':(n>=2?'เต็ม (2/2) รอสักครู่':`พร้อมประกาศ (ว่าง ${2-n}/2)`);}
 
-if (!HOST) {
-  document.getElementById('pcStatus').innerText = '❌ไม่พบข้อมูลคอมพิวเตอร์ กรุณาสแกน QR Code ใหม่';
-} else {
-  document.getElementById('pcStatus').innerText = '🟢 เชื่อมต่อผ่านคลาวด์สำเร็จ';
+function connect(){
+  if(!room) return;
+  if(peer) try{peer.destroy()}catch(e){}
+  peer=new Peer();
+  peer.on('open',()=>{
+    conn=peer.connect(room,{reliable:true});
+    conn.on('open',()=>online(true));
+    conn.on('data',d=>{
+      if(d.type==='auth'){
+        if(d.ok){logged=true;$('login').classList.add('hide');$('panel').classList.remove('hide');slots(d.n||0);msg('');}
+        else msg(d.reason||'PIN ไม่ถูกต้อง',true);
+      } else if(d.type==='status') slots(d.n);
+    });
+    conn.on('close',()=>{online(false);if(talking)stopTalk();setTimeout(()=>{ if(logged){location.reload();} else connect(); },3000);});
+  });
+  peer.on('error',e=>{ if(e.type==='peer-unavailable'){online(false);setTimeout(connect,4000);} });
 }
-
-function apiBase(){ 
-  return `https://${HOST}`; 
+function login(){
+  const pin=$('pin').value.trim(); if(!pin) return msg('กรอก PIN ก่อน',true);
+  try{ $('rem').checked?localStorage.setItem('ga-pin',pin):localStorage.removeItem('ga-pin'); }catch(e){}
+  if(!conn||!conn.open) return msg('ยังเชื่อมต่อคอมพิวเตอร์ไม่ได้',true);
+  conn.send({type:'auth',pin});
 }
-function wsUrl(){ 
-  return `wss://${HOST}/ws?pin=${encodeURIComponent(PIN)}&room=${encodeURIComponent(ROOM)}`; 
-}
-
-async function tryAutoLogin(){
-  if (!PIN || !HOST) return;
+async function ensureMic(){
+  if(raw) return true;
   try{
-    const res = await fetch(apiBase()+'/api/login', {method:'POST', body:new URLSearchParams({pin:PIN})});
-    const data = await res.json();
-    if (data.ok) showMicCard();
-  }catch(e){}
+    raw=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
+  }catch(e){ msg('ไม่ได้รับอนุญาตใช้ไมโครโฟน',true); return false; }
+  ctx=new (window.AudioContext||window.webkitAudioContext)();
+  const src=ctx.createMediaStreamSource(raw); gain=ctx.createGain(); analyser=ctx.createAnalyser(); dest=ctx.createMediaStreamDestination();
+  gain.gain.value=$('vol').value/100; src.connect(gain); gain.connect(analyser); gain.connect(dest); meter(); return true;
 }
+function meter(){const b=new Uint8Array(analyser.fftSize);(function f(){analyser.getByteTimeDomainData(b);
+  let m=0;for(const v of b)m=Math.max(m,Math.abs(v-128));$('lvl').style.width=Math.min(100,m/128*140)+'%';requestAnimationFrame(f);})();}
+$('vol').oninput=e=>{$('vl').textContent=e.target.value+'%'; if(gain) gain.gain.value=e.target.value/100;};
 
-document.getElementById('loginForm').addEventListener('submit', async (e)=>{
-  e.preventDefault();
-  const pinVal = document.getElementById('pin').value;
-  const remember = document.getElementById('remember').checked;
-  try{
-    const res = await fetch(apiBase()+'/api/login', {method:'POST', body:new URLSearchParams({pin:pinVal})});
-    const data = await res.json();
-    if (data.ok){
-      PIN = pinVal;
-      if (remember) localStorage.setItem('sb_pin', pinVal);
-      showMicCard();
-    } else {
-      document.getElementById('err').innerText = data.error || 'รหัสผ่านไม่ถูกต้อง';
-    }
-  }catch(err){
-    document.getElementById('err').innerText = 'ไม่สามารถเชื่อมต่อคอมพิวเตอร์ได้';
-  }
-});
-
-function showMicCard(){
-  document.getElementById('pinCard').style.display = 'none';
-  document.getElementById('micCard').style.display = 'block';
-  connectWS();
-  pollStatus();
-  setInterval(pollStatus, 3000);
+async function startTalk(){
+  wantTalk=true; if(!(await ensureMic())||!wantTalk||talking) return;
+  if(ctx.state==='suspended') await ctx.resume();
+  call=peer.call(room,dest.stream); call.on('close',()=>{if(talking)stopTalk();});
+  talking=true;$('mic').classList.add('on');$('miclbl').innerHTML='กำลังประกาศ<br>…';slots(0);
 }
-
-let mediaRecorder, ws, tapMode=false, holding=false;
-const micBtn=document.getElementById('micBtn');
-const vol=document.getElementById('vol');
-vol.addEventListener('input', ()=>document.getElementById('volVal').innerText=vol.value+'%');
-
-function connectWS(){ ws = new WebSocket(wsUrl()); }
-
-async function startRecording(){
-  try{
-    const stream = await navigator.mediaDevices.getUserMedia({audio:true});
-    mediaRecorder = new MediaRecorder(stream, {mimeType:'audio/webm;codecs=opus'});
-    mediaRecorder.ondataavailable = e => {
-      if(e.data.size>0 && ws.readyState===1) e.data.arrayBuffer().then(b=>ws.send(b));
-    };
-    mediaRecorder.start(250);
-    if(ws.readyState===1) ws.send(JSON.stringify({type:'start'}));
-    micBtn.classList.add('live');
-  }catch(err){ alert('ไม่สามารถเข้าถึงไมโครโฟนได้: '+err.message); }
+function stopTalk(){
+  wantTalk=false; if(!talking) return; talking=false; if(call) call.close();
+  $('mic').classList.remove('on');$('miclbl').innerHTML='กดค้าง<br>เพื่อประกาศ';slots(0);
 }
-function stopRecording(){
-  if(mediaRecorder && mediaRecorder.state!=='inactive') mediaRecorder.stop();
-  if(ws && ws.readyState===1) ws.send(JSON.stringify({type:'stop'}));
-  micBtn.classList.remove('live');
-}
-micBtn.addEventListener('mousedown', ()=>{ if(!tapMode) startRecording(); });
-micBtn.addEventListener('mouseup', ()=>{ if(!tapMode) stopRecording(); });
-micBtn.addEventListener('touchstart', e=>{ e.preventDefault(); if(!tapMode) startRecording(); });
-micBtn.addEventListener('touchend', e=>{ e.preventDefault(); if(!tapMode) stopRecording(); });
-micBtn.addEventListener('click', ()=>{
-  if(tapMode){ holding=!holding; holding?startRecording():stopRecording(); }
-});
-document.getElementById('tapMode').addEventListener('change', e=>{ tapMode=e.target.checked; });
-document.getElementById('chimeBtn').addEventListener('click', ()=>{
-  fetch(apiBase()+'/api/chime?pin='+encodeURIComponent(PIN), {method:'POST'});
-});
-document.getElementById('logoutBtn').addEventListener('click', ()=>{
-  localStorage.removeItem('sb_pin');
-  location.reload();
-});
-async function pollStatus(){
-  try{
-    const r=await fetch(apiBase()+'/api/status'); const d=await r.json();
-    document.getElementById('statusText').innerText = `พร้อมประกาศ (ว่าง ${d.max-d.connected}/${d.max})`;
-    document.getElementById('countText').innerText = `ผู้ประกาศในสาย: ${d.connected}/${d.max}`;
-  }catch(e){}
-}
-
-tryAutoLogin();
-</script>
-</body>
-</html>
+const mic=$('mic');
+mic.addEventListener('pointerdown',e=>{e.preventDefault(); if($('tap').checked){talking?stopTalk():startTalk();} else startTalk();});
+['pointerup','pointercancel','pointerleave'].forEach(ev=>mic.addEventListener(ev,()=>{ if(!$('tap').checked) stopTalk(); }));
+$('tap').onchange=()=>{ stopTalk(); $('miclbl').innerHTML=$('tap').checked?'แตะเพื่อเริ่ม<br>/ หยุด':'กดค้าง<br>เพื่อประกาศ'; };
+function chime(){ if(conn&&conn.open){conn.send({type:'chime'});msg('ส่งสัญญาณกริ่งแล้ว 🔔');} }
+connect();
+</script></body></html>
