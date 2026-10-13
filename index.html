@@ -32,7 +32,7 @@ input[type=range]{width:100%}
   <div class="icon">🔒</div>
   <h2>รหัสผ่านเข้าห้องประกาศ</h2>
   <p class="sub">กรอกรหัส PIN ที่กำหนดไว้ในคอมพิวเตอร์</p>
-  <div class="status" id="pcStatus">🔄 กำลังตรวจสอบคอมพิวเตอร์...</div>
+  <div class="status" id="pcStatus">🔄 กำลังเชื่อมต่อคลาวด์...</div>
   <form id="loginForm">
     <input type="password" id="pin" maxlength="8" placeholder="••••">
     <div class="row"><input type="checkbox" id="remember" checked> จดจำรหัสผ่านในเครื่องนี้</div>
@@ -56,19 +56,22 @@ input[type=range]{width:100%}
 <script>
 const params = new URLSearchParams(location.search);
 const HOST = params.get('host');
-const PORT = params.get('port') || '8080';
 const ROOM = params.get('room') || '-';
 let PIN = params.get('pin') || localStorage.getItem('sb_pin') || '';
 document.getElementById('roomLabel').innerText = 'ห้อง: ' + ROOM;
 
 if (!HOST) {
-  document.getElementById('pcStatus').innerText = '❌ ไม่พบข้อมูลคอมพิวเตอร์ กรุณาสแกน QR Code จากโปรแกรมใหม่อีกครั้ง';
+  document.getElementById('pcStatus').innerText = '❌ไม่พบข้อมูลคอมพิวเตอร์ กรุณาสแกน QR Code ใหม่';
 } else {
-  document.getElementById('pcStatus').innerText = '🟢 พบคอมพิวเตอร์: ' + HOST;
+  document.getElementById('pcStatus').innerText = '🟢 เชื่อมต่อผ่านคลาวด์สำเร็จ';
 }
 
-function apiBase(){ return `https://${HOST}:${PORT}`; }
-function wsUrl(){ return `wss://${HOST}:${PORT}/ws?pin=${encodeURIComponent(PIN)}&room=${encodeURIComponent(ROOM)}`; }
+function apiBase(){ 
+  return `https://${HOST}`; 
+}
+function wsUrl(){ 
+  return `wss://${HOST}/ws?pin=${encodeURIComponent(PIN)}&room=${encodeURIComponent(ROOM)}`; 
+}
 
 async function tryAutoLogin(){
   if (!PIN || !HOST) return;
@@ -76,7 +79,7 @@ async function tryAutoLogin(){
     const res = await fetch(apiBase()+'/api/login', {method:'POST', body:new URLSearchParams({pin:PIN})});
     const data = await res.json();
     if (data.ok) showMicCard();
-  }catch(e){ /* ยังไม่ได้ยืนยันใบรับรองความปลอดภัย */ }
+  }catch(e){}
 }
 
 document.getElementById('loginForm').addEventListener('submit', async (e)=>{
@@ -94,8 +97,7 @@ document.getElementById('loginForm').addEventListener('submit', async (e)=>{
       document.getElementById('err').innerText = data.error || 'รหัสผ่านไม่ถูกต้อง';
     }
   }catch(err){
-    document.getElementById('err').innerText =
-      'เชื่อมต่อคอมพิวเตอร์ไม่ได้ กรุณาเปิดลิงก์ยืนยันความปลอดภัยของคอม (ครั้งแรกเท่านั้น) แล้วลองใหม่';
+    document.getElementById('err').innerText = 'ไม่สามารถเชื่อมต่อคอมพิวเตอร์ได้';
   }
 });
 
