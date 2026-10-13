@@ -1,304 +1,160 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="th">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ประกาศเสียงตามสาย</title>
-<script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
 <style>
-  body{font-family:system-ui,sans-serif;background:#f4f6fb;margin:0;display:flex;justify-content:center;align-items:center;min-height:100vh}
-  .card{background:#fff;margin:16px;padding:24px;border-radius:24px;max-width:420px;width:100%;
-        box-shadow:0 8px 30px rgba(74,85,162,0.12);text-align:center}
-  h1{color:#4a55a2;font-size:1.3rem;margin:8px 0 4px}
-  .sub{color:#666;font-size:0.85rem;margin-bottom:20px}
-  input[type=password]{font-size:1.4rem;padding:12px;width:80%;text-align:center;border-radius:14px;border:1px solid #cbd5e1;letter-spacing:8px;outline:none;margin-bottom:14px}
-  button{font-size:1.05rem;border:0;border-radius:14px;padding:14px;color:#fff;background:#6366f1;cursor:pointer;width:100%;font-weight:600;transition:background 0.2s}
-  button:hover{background:#4f46e5}
-  .badge{background:#ecfdf5;color:#047857;border-radius:12px;padding:10px;font-size:0.9rem;margin-bottom:16px;font-weight:500;border:1px.solid #a7f3d0}
-  .talk{width:200px;height:200px;border-radius:50%;font-size:1.2rem;background:#10b981;margin:20px auto;display:flex;flex-direction:column;justify-content:center;align-items:center;box-shadow:0 10px 25px rgba(16,185,129,0.3)}
-  .talk.live{background:#ef4444;box-shadow:0 10px 25px rgba(239,68,68,0.4);animation:pulse 1.5s infinite}
-  .talk.wait{background:#f59e0b}
-  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(239,68,68,0.5)} 70%{box-shadow:0 0 0 20px rgba(239,68,68,0)} 100%{box-shadow:0 0 0 0 rgba(239,68,68,0)}}
-  .meter{height:10px;background:#e5e7eb;border-radius:5px;overflow:hidden;margin:16px 0}
-  #level{height:100%;width:0;background:#10b981;transition:width 0.08s}
-  .chime{background:#f59e0b;margin-top:10px}
-  .chime:hover{background:#d97706}
-  .music-section{margin-top:20px;border-top:1px solid #e5e7eb;padding-top:16px;text-align:left}
-  .music-section h2{color:#4a55a2;font-size:0.95rem;margin-bottom:8px;text-align:center}
-  #np{font-size:0.85rem;color:#555;text-align:center;margin-bottom:10px;background:#f8fafc;padding:8px;border-radius:8px}
-  .music-grid{display:grid;grid-template-columns:repeat(6, 1fr);gap:4px;margin-bottom:10px}
-  .music-grid button{padding:10px 0;font-size:1rem;background:#475569}
-  .music-grid button:hover{background:#334155}
-  .vol-box{display:flex;align-items:center;gap:10px;font-size:0.85rem;color:#555}
-  .vol-box input{flex:1}
-  hr{margin:20px 0;border:0;border-top:1px solid #e5e7eb}
-  #status{color:#64748b;font-size:0.9rem;margin-top:14px;min-height:1.5em}
-  .remember{display:flex;align-items:center;justify-content:center;gap:8px;font-size:0.9rem;color:#4b5563;margin-bottom:16px;cursor:pointer}
-  .remember input{width:18px;height:18px;cursor:pointer}
+body{font-family:'Tahoma',sans-serif;background:#f3f4f8;display:flex;flex-direction:column;align-items:center;padding:30px 20px;margin:0}
+.badge{background:white;border-radius:14px;padding:10px 18px;box-shadow:0 2px 6px rgba(0,0,0,.06);margin-bottom:40px;text-align:center}
+.card{background:white;border-radius:20px;padding:24px;width:100%;max-width:380px;box-shadow:0 4px 14px rgba(0,0,0,.08);text-align:center}
+.icon{width:64px;height:64px;background:#eef1ff;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:28px}
+h2{margin:4px 0}
+p.sub{color:#9aa0ab;font-size:13px;margin-top:0}
+.status{background:#eafaf1;color:#1e8449;border-radius:10px;padding:10px;font-size:13px;margin:14px 0}
+input[type=password]{width:100%;box-sizing:border-box;padding:14px;border-radius:10px;border:1px solid #e2e4e9;text-align:center;letter-spacing:6px;font-size:20px;margin-bottom:14px}
+button{width:100%;padding:14px;border:none;border-radius:10px;background:#5b3df5;color:white;font-size:16px;font-weight:bold;cursor:pointer}
+.row{display:flex;align-items:center;gap:8px;font-size:13px;color:#555;margin-bottom:16px;justify-content:center}
+.vol-row{display:flex;justify-content:space-between;font-size:14px;margin-bottom:6px}
+input[type=range]{width:100%}
+.switch-row{display:flex;justify-content:space-between;align-items:center;margin:18px 0;font-size:14px}
+#chimeBtn{background:#e8820b;margin-bottom:28px}
+#micBtn{width:140px;height:140px;border-radius:50%;background:#e4336a;margin:0 auto;display:block}
+#micBtn.live{background:#c0265a;transform:scale(1.05)}
+.foot{display:flex;justify-content:space-between;font-size:12px;color:#888;margin-top:24px}
+#logoutBtn{color:#5b3df5;cursor:pointer;background:none;border:none;font-size:12px;width:auto;padding:0}
 </style>
 </head>
 <body>
-<div class="card">
-  <div style="font-size:2rem;margin-bottom:4px">📢</div>
-  <h1>ประกาศเสียงตามสาย</h1>
-  <p class="sub">ห้อง: <b id="roomLbl">-</b></p>
+<div class="badge">📢 <b>ประกาศเสียงตามสาย</b><br><small id="roomLabel">ห้อง: -</small></div>
 
-  <div id="login">
-    <div class="badge" id="pcOnlineBadge" style="background:#fef3c7;color:#b45309;border-color:#fde68a">⏳ กำลังตรวจสอบสถานะคอมพิวเตอร์...</div>
-    <div style="font-size:0.9rem;color:#4b5563;margin-bottom:8px">กรอกรหัส PIN ที่กำหนดไว้ในคอมพิวเตอร์</div>
-    <input id="pin" type="password" inputmode="numeric" maxlength="8" placeholder="••••" autocomplete="off">
-    <br>
-    <label class="remember"><input type="checkbox" id="chkRemember" checked> จดจำรหัสผ่านในเครื่องนี้</label>
-    <br><button id="btnLogin">เข้าสู่ระบบ</button>
-  </div>
+<div class="card" id="pinCard">
+  <div class="icon">🔒</div>
+  <h2>รหัสผ่านเข้าห้องประกาศ</h2>
+  <p class="sub">กรอกรหัส PIN ที่กำหนดไว้ในคอมพิวเตอร์</p>
+  <div class="status" id="pcStatus">🔄 กำลังตรวจสอบคอมพิวเตอร์...</div>
+  <form id="loginForm">
+    <input type="password" id="pin" maxlength="8" placeholder="••••">
+    <div class="row"><input type="checkbox" id="remember" checked> จดจำรหัสผ่านในเครื่องนี้</div>
+    <button type="submit">เข้าสู่ระบบ</button>
+  </form>
+  <div id="err" style="color:#e74c3c;font-size:13px;min-height:16px"></div>
+</div>
 
-  <div id="panel" hidden>
-    <div class="badge" id="pcStatus">🟢 คอมพิวเตอร์: ออนไลน์ พร้อมใช้งาน (Online)</div>
-    <button id="btnTalk" class="talk">🎙️<br><span style="font-size:0.9rem;margin-top:4px">เริ่มประกาศ</span></button>
-    <div class="meter"><div id="level"></div></div>
-    <button id="btnChime" class="chime">🔔 เล่นเสียงกริ่งเตือน</button>
-    
-    <div class="music-section">
-      <h2>🎵 ควบคุมเครื่องเล่นเพลง</h2>
-      <p id="np">กำลังโหลดสถานะ...</p>
-      <div class="music-grid">
-        <button data-cmd="launch" title="เปิดโปรแกรม">🚀</button>
-        <button data-cmd="prev" title="เพลงก่อนหน้า">⏮</button>
-        <button data-cmd="play" title="เล่น">▶</button>
-        <button data-cmd="pause" title="พัก">⏸</button>
-        <button data-cmd="stop" title="หยุด">⏹</button>
-        <button data-cmd="next" title="เพลงถัดไป">⏭</button>
-      </div>
-      <div class="vol-box">
-        <span>🔊</span>
-        <input id="mvol" type="range" min="0" max="100">
-        <span id="mvolv" style="min-width:32px;text-align:right">0%</span>
-      </div>
-    </div>
-  </div>
-
-  <p id="status">พร้อมเชื่อมต่อระบบ</p>
+<div class="card" id="micCard" style="display:none">
+  <div class="status" id="statusText">พร้อมประกาศ</div>
+  <div class="vol-row"><span>ระดับเสียงไมค์:</span><span id="volVal">100%</span></div>
+  <input type="range" id="vol" min="0" max="100" value="100">
+  <div class="switch-row"><span>โหมดแตะเปิด / แตะปิด</span>
+    <label><input type="checkbox" id="tapMode"></label></div>
+  <button id="chimeBtn">🔔 เล่นเสียงกริ่งเตือน</button>
+  <button id="micBtn">🎙️<br>กดค้าง<br>เพื่อประกาศ</button>
+  <div class="foot"><span id="countText">ผู้ประกาศในสาย: 0/2</span>
+    <button id="logoutBtn">ออกจากระบบ</button></div>
 </div>
 
 <script>
-const q = new URLSearchParams(location.search);
-const ROOM = q.get("room") || "";
-const BROKER = q.get("broker") || "wss://broker.hivemq.com:8884/mqtt";
-const ICE = [{urls: "stun:stun.l.google.com:19302"}, {urls: "stun:stun.cloudflare.com:3478"}];
-const ID = "m" + Math.random().toString(36).slice(2, 10);
+const params = new URLSearchParams(location.search);
+const HOST = params.get('host');
+const PORT = params.get('port') || '8080';
+const ROOM = params.get('room') || '-';
+let PIN = params.get('pin') || localStorage.getItem('sb_pin') || '';
+document.getElementById('roomLabel').innerText = 'ห้อง: ' + ROOM;
 
-const $ = id => document.getElementById(id);
-const enc = new TextEncoder();
-let client, key, TOPIC, pc, stream, wakeLock, actx, loggedIn = false, state = "idle", pending = {};
-
-const ERR = {
-  auth: "รหัส PIN ไม่ถูกต้อง ❌", time: "เวลาในมือถือไม่ตรง กรุณาตั้งค่าเวลาอัตโนมัติ",
-  timeout: "คอมพิวเตอร์ไม่ตอบ (ปิดอยู่ หรือไม่ได้ต่อเน็ต)", disabled: "ระบบเสียงตามสายถูกปิดอยู่",
-  busy: "มีผู้ประกาศใช้งานอยู่เต็มแล้ว กรุณารอสักครู่", broker: "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ ตรวจสอบอินเทอร์เน็ต",
-  NotAllowedError: "กรุณาอนุญาตให้ใช้ไมโครโฟน",
-};
-const msgOf = e => ERR[e.name] || ERR[e.message] || ("เกิดข้อผิดพลาด: " + e.message);
-const setStatus = t => $("status").textContent = t;
-
-const hex = b => [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, "0")).join("");
-const sha256hex = async s => hex(await crypto.subtle.digest("SHA-256", enc.encode(s)));
-const sign = async (type, ts, data) =>
-  hex(await crypto.subtle.sign("HMAC", key, enc.encode(`${type}|${ID}|${ts}|${data}`)));
-
-async function send(type, data = "") {
-  if (!client || !client.connected) return;
-  const ts = Date.now();
-  client.publish(TOPIC + "/phone", JSON.stringify({type, id: ID, ts, data, sig: await sign(type, ts, data)}), {qos: 1});
+if (!HOST) {
+  document.getElementById('pcStatus').innerText = '❌ ไม่พบข้อมูลคอมพิวเตอร์ กรุณาสแกน QR Code จากโปรแกรมใหม่อีกครั้ง';
+} else {
+  document.getElementById('pcStatus').innerText = '🟢 พบคอมพิวเตอร์: ' + HOST;
 }
 
-function waitFor(type, ms) {
-  return new Promise((res, rej) => {
-    pending[type] = {res, rej};
-    setTimeout(() => { if (pending[type]) { delete pending[type]; rej(new Error("timeout")); } }, ms);
-  });
-}
-function resolveP(type, v) { const p = pending[type]; if (p) { delete pending[type]; p.res(v); } }
-function rejectAll(err) {
-  const had = Object.keys(pending).length;
-  for (const k in pending) pending[k].rej(err);
-  pending = {};
-  if (!had && loggedIn && err.message === "auth") logout(ERR.auth);
+function apiBase(){ return `https://${HOST}:${PORT}`; }
+function wsUrl(){ return `wss://${HOST}:${PORT}/ws?pin=${encodeURIComponent(PIN)}&room=${encodeURIComponent(ROOM)}`; }
+
+async function tryAutoLogin(){
+  if (!PIN || !HOST) return;
+  try{
+    const res = await fetch(apiBase()+'/api/login', {method:'POST', body:new URLSearchParams({pin:PIN})});
+    const data = await res.json();
+    if (data.ok) showMicCard();
+  }catch(e){ /* ยังไม่ได้ยืนยันใบรับรองความปลอดภัย */ }
 }
 
-async function onMsg(_t, payload) {
-  let m; try { m = JSON.parse(payload.toString()); } catch { return; }
-  if (m.id !== ID && m.id !== "pc_status") return;
-  
-  if (m.type === "pc_ping") {
-    $("pcOnlineBadge").innerHTML = "🟢 คอมพิวเตอร์: ออนไลน์ พร้อมใช้งาน (Online)";
-    $("pcOnlineBadge").style.background = "#ecfdf5";
-    $("pcOnlineBadge").style.color = "#047857";
-    $("pcOnlineBadge").style.borderColor = "#a7f3d0";
-    return;
-  }
-
-  if (m.id !== ID) return;
-  if (["error", "busy", "disabled"].includes(m.type)) { rejectAll(new Error(m.type === "error" ? m.data : m.type)); return; }
-  if (m.sig !== await sign(m.type, m.ts, m.data)) return;
-  if (m.type === "welcome") resolveP("welcome", JSON.parse(m.data));
-  else if (m.type === "answer") resolveP("answer", m.data);
-  else if (m.type === "wa_info") showWa(JSON.parse(m.data));
-}
-
-async function connectBroker() {
-  if (!client) {
-    client = mqtt.connect(BROKER, {clientId: ID, clean: true, reconnectPeriod: 3000, connectTimeout: 10000});
-    client.on("message", onMsg);
-    client.on("offline", () => setStatus("⚠️ อินเทอร์เน็ตหลุด กำลังเชื่อมต่อใหม่..."));
-    client.on("connect", () => { 
-      if (loggedIn) setStatus("เชื่อมต่อระบบสำเร็จ ✅"); 
-    });
-  }
-  await new Promise((res, rej) => {
-    if (client.connected) return res();
-    const t = setTimeout(() => rej(new Error("broker")), 12000);
-    client.once("connect", () => { clearTimeout(t); res(); });
-  });
-  await client.subscribeAsync(TOPIC + "/pc", {qos: 1});
-}
-
-$("btnLogin").onclick = async () => {
-  const pin = $("pin").value.trim();
-  if (!ROOM) return setStatus("ลิงก์ไม่ถูกต้อง (ไม่มีรหัสห้อง) กรุณาสแกน QR ใหม่");
-  if (!/^\d{4,8}$/.test(pin)) return setStatus("PIN ต้องเป็นตัวเลข 4-8 หลัก");
-  setStatus("กำลังตรวจสอบข้อมูล...");
-  try {
-    key = await crypto.subtle.importKey("raw", enc.encode(ROOM + ":" + pin),
-                                        {name: "HMAC", hash: "SHA-256"}, false, ["sign"]);
-    TOPIC = "schoolbell/" + (await sha256hex(ROOM)).slice(0, 24);
-    await connectBroker();
-    const p = waitFor("welcome", 8000);
-    await send("hello");
-    const info = await p;
-    
-    if ($("chkRemember").checked) {
-      localStorage.setItem("pin_" + ROOM, pin);
+document.getElementById('loginForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const pinVal = document.getElementById('pin').value;
+  const remember = document.getElementById('remember').checked;
+  try{
+    const res = await fetch(apiBase()+'/api/login', {method:'POST', body:new URLSearchParams({pin:pinVal})});
+    const data = await res.json();
+    if (data.ok){
+      PIN = pinVal;
+      if (remember) localStorage.setItem('sb_pin', pinVal);
+      showMicCard();
     } else {
-      localStorage.removeItem("pin_" + ROOM);
+      document.getElementById('err').innerText = data.error || 'รหัสผ่านไม่ถูกต้อง';
     }
-    
-    loggedIn = true;
-    $("login").hidden = true; $("panel").hidden = false;
-    $("pcStatus").textContent = `🟢 เชื่อมคอมสำเร็จ (กำลังประกาศ ${info.live}/${info.max})`;
-    setStatus("พร้อมประกาศแล้ว ✅");
-    send("wa", '{"cmd":"info"}');
-  } catch (e) { setStatus(msgOf(e)); }
-};
-
-function logout(msg) {
-  stopTalk(false); loggedIn = false;
-  $("panel").hidden = true; $("login").hidden = false; setStatus(msg);
-}
-
-function iceDone(pc) {
-  return new Promise(res => {
-    if (pc.iceGatheringState === "complete") return res();
-    const t = setTimeout(res, 4000);
-    pc.addEventListener("icegatheringstatechange", () => {
-      if (pc.iceGatheringState === "complete") { clearTimeout(t); res(); }
-    });
-  });
-}
-
-async function startTalk() {
-  state = "waiting"; ui(); setStatus("กำลังเปิดไมโครโฟน...");
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({
-      audio: {echoCancellation: true, noiseSuppression: true, autoGainControl: true}});
-    meter(stream);
-    pc = new RTCPeerConnection({iceServers: ICE});
-    stream.getTracks().forEach(t => pc.addTrack(t, stream));
-    pc.onconnectionstatechange = () => {
-      const s = pc && pc.connectionState;
-      if (s === "connected") { state = "live"; ui(); setStatus("🔴 กำลังออกอากาศเสียงตามสาย..."); }
-      else if (s === "failed") { stopTalk(true); setStatus("เชื่อมต่อเสียงไม่สำเร็จ"); }
-    };
-    await pc.setLocalDescription(await pc.createOffer());
-    await iceDone(pc);
-    const p = waitFor("answer", 15000);
-    await send("offer", pc.localDescription.sdp);
-    await pc.setRemoteDescription({type: "answer", sdp: await p});
-    try { wakeLock = await navigator.wakeLock?.request("screen"); } catch {}
-  } catch (e) { stopTalk(false); setStatus(msgOf(e)); }
-}
-
-function stopTalk(notify) {
-  if (notify && client && pc) send("bye");
-  pc?.close(); pc = null;
-  stream?.getTracks().forEach(t => t.stop()); stream = null;
-  wakeLock?.release?.(); wakeLock = null;
-  state = "idle"; ui();
-}
-
-function meter(s) {
-  actx = actx || new AudioContext();
-  const an = actx.createAnalyser(); an.fftSize = 512;
-  actx.createMediaStreamSource(s).connect(an);
-  const buf = new Uint8Array(an.fftSize);
-  (function draw() {
-    if (!stream) { $("level").style.width = "0"; return; }
-    an.getByteTimeDomainData(buf);
-    let peak = 0; for (const v of buf) peak = Math.max(peak, Math.abs(v - 128));
-    $("level").style.width = Math.min(100, peak / 128 * 160) + "%";
-    requestAnimationFrame(draw);
-  })();
-}
-
-function ui() {
-  const b = $("btnTalk");
-  b.className = "talk" + (state === "live" ? " live" : state === "waiting" ? " wait" : "");
-  b.innerHTML = state === "live" ? "⏹<br><span style='font-size:0.9rem;margin-top:4px'>จบการประกาศ</span>" : state === "waiting" ? "⏳<br><span style='font-size:0.9rem;margin-top:4px'>กำลังเชื่อมต่อ</span>" : "🎙️<br><span style='font-size:0.9rem;margin-top:4px'>เริ่มประกาศ</span>";
-}
-
-$("btnTalk").onclick = () => {
-  if (state === "idle") startTalk();
-  else { stopTalk(true); setStatus("จบการประกาศเรียบร้อย"); }
-};
-$("btnChime").onclick = () => { send("chime"); setStatus("🔔 ส่งสัญญาณเสียงกริ่งแล้ว"); };
-window.addEventListener("pagehide", () => { if (pc) send("bye"); });
-
-function showWa(i) {
-  $("pcStatus").textContent = `🟢 คอมพิวเตอร์ออนไลน์ (ประกาศ ${i.pa_live}/${i.pa_max})`;
-  if (!i.running) { $("np").textContent = "Winamp ยังไม่เปิดทำงาน (กดปุ่ม 🚀)"; return; }
-  const icon = {1: "▶", 3: "⏸"}[i.status] || "⏹";
-  $("np").textContent = `${icon} ${i.title || "ไม่มีเพลงกำลังเล่น"}` + (i.ducked ? " (หรี่เสียงอยู่)" : "");
-  if (document.activeElement !== $("mvol")) $("mvol").value = i.volume;
-  $("mvolv").textContent = i.volume + "%";
-}
-
-document.querySelectorAll("[data-cmd]").forEach(b =>
-  b.onclick = () => send("wa", JSON.stringify({cmd: b.dataset.cmd})));
-$("mvol").oninput = e => $("mvolv").textContent = e.target.value + "%";
-$("mvol").onchange = e => send("wa", JSON.stringify({cmd: "volume", value: +e.target.value}));
-
-setInterval(() => {
-  if (!loggedIn && ROOM && client?.connected) {
-    send("ping");
-  } else if (loggedIn && client?.connected) {
-    send("wa", '{"cmd":"info"}');
+  }catch(err){
+    document.getElementById('err').innerText =
+      'เชื่อมต่อคอมพิวเตอร์ไม่ได้ กรุณาเปิดลิงก์ยืนยันความปลอดภัยของคอม (ครั้งแรกเท่านั้น) แล้วลองใหม่';
   }
-}, 4000);
+});
 
-$("roomLbl").textContent = ROOM || "(ไม่มีรหัสห้อง)";
-const savedPin = localStorage.getItem("pin_" + ROOM);
-if (savedPin) {
-  $("pin").value = savedPin;
-  $("chkRemember").checked = true;
+function showMicCard(){
+  document.getElementById('pinCard').style.display = 'none';
+  document.getElementById('micCard').style.display = 'block';
+  connectWS();
+  pollStatus();
+  setInterval(pollStatus, 3000);
 }
 
-// เริ่มต้นเชื่อมต่อเบื้องหลังเพื่อเช็กสถานะคอมพิวเตอร์
-(async () => {
-  if (!ROOM) return;
-  try {
-    TOPIC = "schoolbell/" + (await sha256hex(ROOM)).slice(0, 24);
-    await connectBroker();
-  } catch (e) {}
-})();
+let mediaRecorder, ws, tapMode=false, holding=false;
+const micBtn=document.getElementById('micBtn');
+const vol=document.getElementById('vol');
+vol.addEventListener('input', ()=>document.getElementById('volVal').innerText=vol.value+'%');
+
+function connectWS(){ ws = new WebSocket(wsUrl()); }
+
+async function startRecording(){
+  try{
+    const stream = await navigator.mediaDevices.getUserMedia({audio:true});
+    mediaRecorder = new MediaRecorder(stream, {mimeType:'audio/webm;codecs=opus'});
+    mediaRecorder.ondataavailable = e => {
+      if(e.data.size>0 && ws.readyState===1) e.data.arrayBuffer().then(b=>ws.send(b));
+    };
+    mediaRecorder.start(250);
+    if(ws.readyState===1) ws.send(JSON.stringify({type:'start'}));
+    micBtn.classList.add('live');
+  }catch(err){ alert('ไม่สามารถเข้าถึงไมโครโฟนได้: '+err.message); }
+}
+function stopRecording(){
+  if(mediaRecorder && mediaRecorder.state!=='inactive') mediaRecorder.stop();
+  if(ws && ws.readyState===1) ws.send(JSON.stringify({type:'stop'}));
+  micBtn.classList.remove('live');
+}
+micBtn.addEventListener('mousedown', ()=>{ if(!tapMode) startRecording(); });
+micBtn.addEventListener('mouseup', ()=>{ if(!tapMode) stopRecording(); });
+micBtn.addEventListener('touchstart', e=>{ e.preventDefault(); if(!tapMode) startRecording(); });
+micBtn.addEventListener('touchend', e=>{ e.preventDefault(); if(!tapMode) stopRecording(); });
+micBtn.addEventListener('click', ()=>{
+  if(tapMode){ holding=!holding; holding?startRecording():stopRecording(); }
+});
+document.getElementById('tapMode').addEventListener('change', e=>{ tapMode=e.target.checked; });
+document.getElementById('chimeBtn').addEventListener('click', ()=>{
+  fetch(apiBase()+'/api/chime?pin='+encodeURIComponent(PIN), {method:'POST'});
+});
+document.getElementById('logoutBtn').addEventListener('click', ()=>{
+  localStorage.removeItem('sb_pin');
+  location.reload();
+});
+async function pollStatus(){
+  try{
+    const r=await fetch(apiBase()+'/api/status'); const d=await r.json();
+    document.getElementById('statusText').innerText = `พร้อมประกาศ (ว่าง ${d.max-d.connected}/${d.max})`;
+    document.getElementById('countText').innerText = `ผู้ประกาศในสาย: ${d.connected}/${d.max}`;
+  }catch(e){}
+}
+
+tryAutoLogin();
 </script>
 </body>
 </html>
