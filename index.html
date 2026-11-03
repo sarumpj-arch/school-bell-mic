@@ -49,6 +49,10 @@ input[type=range]{width:100%;margin:10px 0;accent-color:#4f00ff}
       <label class="sw"><input type="checkbox" id="tap"><span></span></label></div>
   </div>
   <button class="btn chime" onclick="chime()">🔔 เล่นเสียงกริ่งเตือน</button>
+  <div style="display:flex;gap:8px;margin-top:12px">
+    <button class="btn" style="background:#dc2626;margin:0;flex:2" onclick="emergency()">🚨 ฉุกเฉิน</button>
+    <button class="btn" style="background:#64748b;margin:0;flex:1;font-size:15px" onclick="emergencyStop()">ยกเลิก</button>
+  </div>
   <button id="mic" oncontextmenu="return false">🎙<br><span id="miclbl">กดค้าง<br>เพื่อประกาศ</span></button>
   <div class="foot"><span id="cnt">ผู้ประกาศในสาย: 0/2</span><a href="" style="color:#94a3b8">ออกจากระบบ</a></div>
 </div>
@@ -65,10 +69,10 @@ function online(on){const s=$('pcst');s.className='status'+(on?'':' bad');s.text
 function slots(n){const s=$('slot');$('cnt').textContent=`ผู้ประกาศในสาย: ${n}/2`;
   s.className='status'+(n>=2&&!talking?' bad':'');s.textContent=talking?'🎙 กำลังประกาศ…':(n>=2?'เต็ม (2/2) รอสักครู่':`พร้อมประกาศ (ว่าง ${2-n}/2)`);}
 
-function connect(){
+async function connect(){
   if(!room) return;
   if(peer) try{peer.destroy()}catch(e){}
-  peer=new Peer();
+  peer=new Peer(undefined,{config:{iceServers:await loadIce()}});
   peer.on('open',()=>{
     conn=peer.connect(room,{reliable:true});
     conn.on('open',()=>online(true));
@@ -115,6 +119,13 @@ const mic=$('mic');
 mic.addEventListener('pointerdown',e=>{e.preventDefault(); if($('tap').checked){talking?stopTalk():startTalk();} else startTalk();});
 ['pointerup','pointercancel','pointerleave'].forEach(ev=>mic.addEventListener(ev,()=>{ if(!$('tap').checked) stopTalk(); }));
 $('tap').onchange=()=>{ stopTalk(); $('miclbl').innerHTML=$('tap').checked?'แตะเพื่อเริ่ม<br>/ หยุด':'กดค้าง<br>เพื่อประกาศ'; };
+function emergency(){ if(conn&&conn.open&&confirm('ยืนยันเปิดเสียงฉุกเฉินตามสายทั้งโรงเรียน?')){conn.send({type:'emergency'});msg('ส่งสัญญาณฉุกเฉินแล้ว 🚨');} }
+function emergencyStop(){ if(conn&&conn.open){conn.send({type:'emergency_stop'});msg('ยกเลิกเสียงฉุกเฉินแล้ว');} }
+async function loadIce(){
+  const ice=[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:global.stun.twilio.com:3478'}];
+  try{ const r=await fetch('turn.json',{cache:'no-store'}); if(r.ok){ const j=await r.json(); (j.iceServers||[]).forEach(x=>ice.push(x)); } }catch(e){}
+  return ice;
+}
 function chime(){ if(conn&&conn.open){conn.send({type:'chime'});msg('ส่งสัญญาณกริ่งแล้ว 🔔');} }
 connect();
 </script></body></html>
