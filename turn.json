@@ -1,3 +1,13 @@
 {
-  "iceServers": []
+  "iceServers": [
+    {
+      "urls": [
+        "turn:relay1.expressturn.com:3478?transport=udp",
+        "turn:relay1.expressturn.com:3478?transport=tcp",
+        "turns:relay1.expressturn.com:443?transport=tcp"
+      ],
+      "username": "000000002109063250",
+      "credential": "WNzLvlmCL9nGytjZZFy7HrQnIAk="
+    }
+  ]
 }
